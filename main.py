@@ -24,7 +24,7 @@ def create_network(type, node_nr, mean_nr_of_connections, seed):
             #<k> is the mean degree of nodes
             #<k>=2*edge_nr/node_nr
             #<k>=2*node_nr * x/node_nr
-            #<k>=2 * x
+            #<k>=2*x
             #x=<k>/2
             graph_barabasi_albert = nx.barabasi_albert_graph(node_nr, mean_nr_of_connections // 2, seed)
             return graph_barabasi_albert
