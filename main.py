@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 from numpy import random
 import random as rnd
 import heapq
+import matplotlib.animation as animation
+import numpy as np
 
 random.seed(113)
 rnd.seed(113)
@@ -12,7 +14,7 @@ sigma = 1 #Rate to get Infected from being exposed
 gamma = 1 #Rate to get recovered from being infectious
 tau = 1 #Rate to get exposed from being suspectible
 beta = 1 #Rate to get suspectible from being recovered
-delta = 1 #Rate to become dead from being infected
+delta = 0.1 #Rate to become dead from being infected
 
 
 def create_network(type, node_nr, mean_nr_of_connections, seed):
@@ -90,12 +92,21 @@ def simulate_epidemic():
         for n in network.nodes():
             if network.nodes[n]["State"] == "I":
                 time_infectious_recovered = current_time + random.exponential(1 / gamma)
-                heapq.heappush(heap, (time_infectious_recovered, n, 'R'))
-                for neighbor in network.neighbors(n):
-                    if network.nodes[neighbor]["State"] == "S":
-                        time_suspectible_exposed = random.exponential(1/tau)
-                        if time_suspectible_exposed < time_infectious_recovered:
-                            heapq.heappush(heap, (time_suspectible_exposed, neighbor, 'E'))
+                time_infectious_dead = current_time + random.exponential(1 / delta)
+                if time_infectious_recovered < time_infectious_dead:
+                    heapq.heappush(heap, (time_infectious_recovered, n, 'R'))
+                    for neighbor in network.neighbors(n):
+                        if network.nodes[neighbor]["State"] == "S":
+                            time_suspectible_exposed = current_time + random.exponential(1 / tau)
+                            if time_suspectible_exposed < time_infectious_recovered:
+                                heapq.heappush(heap, (time_suspectible_exposed, neighbor, 'E'))
+                else:
+                    network.nodes[n]["State"] = "D"
+                    for neighbor in network.neighbors(n):
+                        if network.nodes[neighbor]["State"] == "S":
+                            time_suspectible_exposed = current_time + random.exponential(1 / tau)
+                            if time_suspectible_exposed < time_infectious_dead:
+                                heapq.heappush(heap, (time_suspectible_exposed, neighbor, 'E'))
         while len(heap) > 0:
             (time, node, event) = heapq.heappop(heap)
             current_time = time
@@ -137,7 +148,6 @@ def simulate_epidemic():
 
 if __name__ == "__main__":
     simulate_epidemic()
-
 
 
 
