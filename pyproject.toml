@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "episim"
+version = "0.2.0"
+description = "Comparing weighted and unweighted network SEIR(+D) models under matched calibration"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [
+    { name = "Teodor Cioata" },
+    { name = "Sarlote Odzina" },
+]
+dependencies = [
+    # numpy >= 2 wheels need an x86-64-v2 CPU (POPCNT), which the VirtualBox development VM lacks.
+    "numpy>=1.26,<2",
+    "scipy>=1.12,<1.14",
+    "networkx>=3.2,<4",
+    "matplotlib>=3.8",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6", "mypy>=1.11"]
+
+[tool.setuptools]
+packages = ["episim"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q --strict-markers"
+markers = ["slow: takes more than a second; deselect with -m 'not slow'"]
+
+[tool.ruff]
+line-length = 100
+src = ["."]
+extend-exclude = ["main.py"]  # Sarlote's file: never reformat or lint-fix it
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "NPY", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# main.py draws from the legacy global RNGs, so seeding and restoring them is deliberate here.
+"episim/networks.py" = ["NPY002"]
+"tests/test_{networks,against_main}.py" = ["NPY002"]
+
+[tool.mypy]
+files = ["episim"]
+python_version = "3.12"
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["networkx.*", "scipy.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["main"]
+ignore_errors = true
