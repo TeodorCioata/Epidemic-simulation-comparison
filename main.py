@@ -91,6 +91,7 @@ def simulate_epidemic():
         initial_network = []
         network = initial_states(create_network(type, 100, 7, 113), 2)
         heap = []
+        infectious_until = {}
         heapq.heapify(heap)
         #First, put on the heap the first events that come from the first infected nodes
         current_time = 0
@@ -99,6 +100,7 @@ def simulate_epidemic():
             if network.nodes[n]["State"] == "I":
                 time_infectious_recovered = current_time + random.exponential(1 / gamma)
                 time_infectious_dead = current_time + random.exponential(1 / delta)
+                infectious_until[n] = min(time_infectious_recovered, time_infectious_dead)
                 if time_infectious_recovered < time_infectious_dead:
                     heapq.heappush(heap, (time_infectious_recovered, n, 'R'))
                     for neighbor in network.neighbors(n):
@@ -107,7 +109,7 @@ def simulate_epidemic():
                             if time_suspectible_exposed < time_infectious_recovered:
                                 heapq.heappush(heap, (time_suspectible_exposed, neighbor, 'E'))
                 else:
-                    network.nodes[n]["State"] = "D"
+                    heapq.heappush(heap, (time_infectious_dead, n, 'D'))
                     for neighbor in network.neighbors(n):
                         if network.nodes[neighbor]["State"] == "S":
                             time_suspectible_exposed = current_time + random.exponential(1 / tau)
@@ -123,6 +125,7 @@ def simulate_epidemic():
                         history.append((current_time, node, network.nodes[node]["State"]))
                         time_infectious_recovered = current_time + random.exponential(1 / gamma)
                         time_infectious_dead = current_time + random.exponential(1 / delta)
+                        infectious_until[node] = min(time_infectious_recovered, time_infectious_dead)
                         if time_infectious_recovered < time_infectious_dead:
                             heapq.heappush(heap, (time_infectious_recovered, node, 'R'))
                             for neighbor in network.neighbors(node):
@@ -131,8 +134,7 @@ def simulate_epidemic():
                                     if time_suspectible_exposed < time_infectious_recovered:
                                         heapq.heappush(heap, (time_suspectible_exposed, neighbor, 'E'))
                         else:
-                            network.nodes[node]["State"] = "D"
-                            history.append((current_time, node, network.nodes[node]["State"]))
+                            heapq.heappush(heap, (time_infectious_dead, node, 'D'))
                             for neighbor in network.neighbors(node):
                                 if network.nodes[neighbor]["State"] == "S":
                                     time_suspectible_exposed = current_time + random.exponential(1 / tau)
@@ -142,6 +144,11 @@ def simulate_epidemic():
                     if network.nodes[node]["State"] == "R":
                         network.nodes[node]["State"] = "S"
                         history.append((current_time, node, network.nodes[node]["State"]))
+                        for neighbor in network.neighbors(node):
+                            if network.nodes[neighbor]["State"] == "I":
+                                time_suspectible_exposed = current_time + random.exponential(1 / tau)
+                                if time_suspectible_exposed < infectious_until[neighbor]:
+                                    heapq.heappush(heap, (time_suspectible_exposed, node, 'E'))
                 case 'R':
                     if network.nodes[node]["State"] == "I":
                         network.nodes[node]["State"] = "R"
@@ -154,6 +161,10 @@ def simulate_epidemic():
                         history.append((current_time, node, network.nodes[node]["State"]))
                         time_exposed_infectious = current_time + random.exponential(1 / sigma)
                         heapq.heappush(heap, (time_exposed_infectious, node, 'I'))
+                case 'D':
+                    if network.nodes[node]["State"] == "I":
+                        network.nodes[node]["State"] = "D"
+                        history.append((current_time, node, network.nodes[node]["State"]))
 
         #I have to replay the epidemic, so I have to go back to the initial state
         for time, node, state in initial_network:
