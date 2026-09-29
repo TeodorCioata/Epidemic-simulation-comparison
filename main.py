@@ -5,6 +5,9 @@ import random as rnd
 import heapq
 import matplotlib.animation as animation
 import numpy as np
+from matplotlib.animation import FuncAnimation
+import matplotlib
+matplotlib.use("TkAgg")
 
 random.seed(113)
 rnd.seed(113)
@@ -84,12 +87,15 @@ def plotting(graph):
 
 def simulate_epidemic():
     for type in ['E', 'B', 'C']:
+        history = []
+        initial_network = []
         network = initial_states(create_network(type, 100, 7, 113), 2)
         heap = []
         heapq.heapify(heap)
         #First, put on the heap the first events that come from the first infected nodes
         current_time = 0
         for n in network.nodes():
+            initial_network.append((current_time, n, network.nodes[n]["State"]))
             if network.nodes[n]["State"] == "I":
                 time_infectious_recovered = current_time + random.exponential(1 / gamma)
                 time_infectious_dead = current_time + random.exponential(1 / delta)
@@ -114,6 +120,7 @@ def simulate_epidemic():
                 case 'I':
                     if network.nodes[node]["State"] == "E":
                         network.nodes[node]["State"] = "I"
+                        history.append((current_time, node, network.nodes[node]["State"]))
                         time_infectious_recovered = current_time + random.exponential(1 / gamma)
                         time_infectious_dead = current_time + random.exponential(1 / delta)
                         if time_infectious_recovered < time_infectious_dead:
@@ -125,6 +132,7 @@ def simulate_epidemic():
                                         heapq.heappush(heap, (time_suspectible_exposed, neighbor, 'E'))
                         else:
                             network.nodes[node]["State"] = "D"
+                            history.append((current_time, node, network.nodes[node]["State"]))
                             for neighbor in network.neighbors(node):
                                 if network.nodes[neighbor]["State"] == "S":
                                     time_suspectible_exposed = current_time + random.exponential(1 / tau)
@@ -133,18 +141,71 @@ def simulate_epidemic():
                 case 'S':
                     if network.nodes[node]["State"] == "R":
                         network.nodes[node]["State"] = "S"
+                        history.append((current_time, node, network.nodes[node]["State"]))
                 case 'R':
                     if network.nodes[node]["State"] == "I":
                         network.nodes[node]["State"] = "R"
+                        history.append((current_time, node, network.nodes[node]["State"]))
                         time_recovered_suspectible = current_time + random.exponential(1 / beta)
                         heapq.heappush(heap, (time_recovered_suspectible, node, 'S'))
                 case 'E':
                     if network.nodes[node]["State"] == "S":
                         network.nodes[node]["State"] = "E"
+                        history.append((current_time, node, network.nodes[node]["State"]))
                         time_exposed_infectious = current_time + random.exponential(1 / sigma)
                         heapq.heappush(heap, (time_exposed_infectious, node, 'I'))
-        plotting(network)
 
+        #I have to replay the epidemic, so I have to go back to the initial state
+        for time, node, state in initial_network:
+            network.nodes[node]["State"] = state
+
+        fig, axis = plt.subplots(figsize=(10, 10))
+        pos = nx.spring_layout(network, seed=113)
+        colors = []
+        for node in network.nodes:
+            if network.nodes[node]["State"] == "I":
+                # Red
+                colors.append((1, 0, 0))
+            elif network.nodes[node]["State"] == "S":
+                # Green
+                colors.append((0, 1, 0))
+            elif network.nodes[node]["State"] == "E":
+                # White
+                colors.append((1, 1, 1))
+            elif network.nodes[node]["State"] == "R":
+                # Blue
+                colors.append((0, 0, 1))
+            elif network.nodes[node]["State"] == "D":
+                # Black
+                colors.append((0, 0, 0))
+
+        nx.draw_networkx_edges(network, pos, ax=axis)
+        nodes = nx.draw_networkx_nodes(network, pos, ax=axis, node_color=colors, edgecolors=(0,0,0))
+        def animate(i):
+            current_time, node, state = history[i]
+            network.nodes[node]["State"] = state
+            colors = []
+            for node in network.nodes:
+                if network.nodes[node]["State"] == "I":
+                    # Red
+                    colors.append((1, 0, 0))
+                elif network.nodes[node]["State"] == "S":
+                    # Green
+                    colors.append((0, 1, 0))
+                elif network.nodes[node]["State"] == "E":
+                    # White
+                    colors.append((1, 1, 1))
+                elif network.nodes[node]["State"] == "R":
+                    # Blue
+                    colors.append((0, 0, 1))
+                elif network.nodes[node]["State"] == "D":
+                    # Black
+                    colors.append((0, 0, 0))
+            nodes.set_facecolor(colors)
+            return nodes,
+
+        anim = animation.FuncAnimation(fig, animate, frames=len(history), interval=10, blit=False)
+        plt.show()
 
 if __name__ == "__main__":
     simulate_epidemic()
