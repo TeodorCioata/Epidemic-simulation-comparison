@@ -23,7 +23,10 @@ def simulate(
     beta: float,
     t_max: float = math.inf,
 ) -> tuple[list[str], list[Event]]:
-    adjacency = [[(v, edge["rate"]) for v, edge in graph.adj[u].items()] for u in range(len(graph))]
+    # Sorted neighbours: the random stream is then read in the same order on a graph and its copies.
+    adjacency = [
+        [(v, graph.adj[u][v]["rate"]) for v in sorted(graph.adj[u])] for u in range(len(graph))
+    ]
     draw = _exponentials(rng).__next__
 
     def waiting(rate: float) -> float:

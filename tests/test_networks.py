@@ -3,7 +3,7 @@ import random
 import numpy as np
 import pytest
 
-import main
+from episim import main
 from episim.networks import (
     NETWORK_NAMES,
     bbv_network,

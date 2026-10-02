@@ -124,9 +124,11 @@ def test_triangle_with_waning_matches_the_exact_markov_chain():
     assert np.mean(exposures) == pytest.approx(exact, abs=4 * standard_error)
 
 
+@pytest.mark.parametrize("kind", ["E", "B", "H"])
 @pytest.mark.parametrize(("cv", "alpha"), [(0.0, 1.7), (2.0, 0.0)])
-def test_degenerate_m2_reproduces_m1_event_for_event(cv, alpha):
-    graph = create_network("E", 300, 7, rng(0))
+def test_degenerate_m2_reproduces_m1_event_for_event(kind, cv, alpha):
+    """Also on B and H, where a copy of the graph lists a node's neighbours in another order."""
+    graph = create_network(kind, 300, 7, rng(0))
     m2 = iid_weights(graph, cv, rng(1))
     set_rates(graph, 1.0)
     set_rates(m2, 1.0, alpha)

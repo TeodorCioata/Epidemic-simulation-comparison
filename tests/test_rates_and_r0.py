@@ -4,7 +4,13 @@ import pytest
 import scipy.sparse as sp
 
 from episim.calibration import (
+    attack_rate_message_passing,
+    discounted_transmissibility,
+    growth_rate,
+    growth_rate_uniform,
+    match_growth_rate,
     match_mean_rate,
+    match_protocol,
     match_r0,
     nonbacktracking_pattern,
     r0_newman,
@@ -12,10 +18,11 @@ from episim.calibration import (
     set_rates,
     tau_max,
     transmissibility,
+    unit_radius,
 )
 from episim.networks import create_network, edge_array, edge_values, iid_weights
 
-GAMMA, DELTA = 1.0, 0.1
+SIGMA, GAMMA, DELTA, TAU = 1.0, 1.0, 0.1, 1.0
 
 
 def rng(seed: int) -> np.random.Generator:
@@ -120,3 +127,72 @@ def test_protocol_ii_hits_the_target(graph):
 def test_protocol_ii_rejects_an_unreachable_target(graph):
     with pytest.raises(ValueError, match="unreachable"):
         match_r0(graph, 1.0, 1e6, GAMMA, DELTA)
+
+
+@pytest.mark.parametrize("k", [4, 6, 8])
+def test_growth_rate_on_a_regular_graph_is_the_root_of_a_quadratic(k):
+    """(sigma + r)(tau + gamma + delta + r) = sigma tau (k - 1)."""
+    tau = 0.8
+    ring = nx.circulant_graph(300, range(1, k // 2 + 1))
+    set_rates(ring, tau)
+    exit_rate = tau + GAMMA + DELTA
+    expected = np.roots([1, SIGMA + exit_rate, SIGMA * (exit_rate - tau * (k - 1))]).max()
+    assert growth_rate_uniform(tau, k - 1, SIGMA, GAMMA, DELTA) == pytest.approx(expected)
+    assert growth_rate(ring, SIGMA, GAMMA, DELTA) == pytest.approx(expected)
+
+
+def test_growth_rate_changes_sign_at_r0_equal_to_one():
+    """T_0 = T, so rho(B(0)) is R_0: on a 5-regular graph R_0 = 1 at tau = (gamma + delta) / 3."""
+    critical = (GAMMA + DELTA) / 3
+    rates = np.array([0.1, 1.0, 5.0])
+    assert discounted_transmissibility(rates, SIGMA, GAMMA, DELTA, 0.0).tolist() == (
+        transmissibility(rates, GAMMA, DELTA).tolist()
+    )
+    assert growth_rate_uniform(critical, 4, SIGMA, GAMMA, DELTA) == pytest.approx(0.0, abs=1e-12)
+    assert growth_rate_uniform(critical / 2, 4, SIGMA, GAMMA, DELTA) < 0
+    assert growth_rate_uniform(critical * 2, 4, SIGMA, GAMMA, DELTA) > 0
+
+
+def test_protocol_iii_gives_m2_the_growth_rate_of_m1(graph):
+    weighted = iid_weights(graph, 1.5, rng(1))
+    pattern = nonbacktracking_pattern(weighted)
+    rho_unit = unit_radius(graph, pattern)
+    r = growth_rate_uniform(TAU, rho_unit, SIGMA, GAMMA, DELTA)
+    set_rates(weighted, match_growth_rate(weighted, 1.2, r, SIGMA, GAMMA, DELTA, pattern), 1.2)
+
+    discounted = discounted_transmissibility(edge_values(weighted, "rate"), SIGMA, GAMMA, DELTA, r)
+    assert r0_nonbacktracking(weighted, discounted, pattern) == pytest.approx(1.0, abs=1e-10)
+    assert growth_rate(weighted, SIGMA, GAMMA, DELTA, pattern) == pytest.approx(r, abs=1e-9)
+    m1_r0 = TAU / (TAU + GAMMA + DELTA) * rho_unit
+    assert r0_nonbacktracking(weighted, rate_t(weighted), pattern) < 0.95 * m1_r0
+
+
+@pytest.mark.parametrize(("cv", "alpha"), [(0.0, 1.7), (2.0, 0.0)])
+@pytest.mark.parametrize("protocol", ["i", "ii", "iii"])
+def test_every_protocol_recovers_tau_in_the_degenerate_limits(graph, protocol, cv, alpha):
+    weighted = iid_weights(graph, cv, rng(1))
+    pattern = nonbacktracking_pattern(weighted)
+    rho_unit = unit_radius(graph, pattern)
+    c = match_protocol(
+        protocol, weighted, alpha, TAU, rho_unit, sigma=SIGMA, gamma=GAMMA, delta=DELTA
+    )
+    assert c == pytest.approx(TAU, rel=2e-12)
+
+
+def test_unknown_protocol_is_rejected(graph):
+    with pytest.raises(ValueError, match="unknown protocol"):
+        match_protocol("iv", graph, 1.0, TAU, 7.0, sigma=SIGMA, gamma=GAMMA, delta=DELTA)
+
+
+def test_message_passing_on_a_regular_graph_is_the_scalar_fixed_point():
+    """u = 1 - T + T u^(k-1) and attack rate = 1 - u^k, which is 0 below T (k - 1) = 1."""
+    k, t = 4, 0.6
+    regular = nx.random_regular_graph(k, 500, seed=0)
+    u = 0.0
+    for _ in range(1000):
+        u = 1 - t + t * u ** (k - 1)
+    supercritical = np.full(regular.number_of_edges(), t)
+    predicted = attack_rate_message_passing(regular, supercritical)
+    assert predicted == pytest.approx(1 - u**k, abs=1e-9)
+    assert 0.5 < predicted < 1
+    assert attack_rate_message_passing(regular, supercritical / 2) == pytest.approx(0, abs=1e-9)

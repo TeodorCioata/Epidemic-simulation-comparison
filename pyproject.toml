@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "episim"
-version = "0.2.0"
+version = "0.3.0"
 description = "Comparing weighted and unweighted network SEIR(+D) models under matched calibration"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -42,7 +42,7 @@ select = ["E", "F", "W", "I", "UP", "B", "NPY", "RUF"]
 
 [tool.ruff.lint.per-file-ignores]
 # main.py draws from the legacy global RNGs, so seeding and restoring them is deliberate here.
-"episim/networks.py" = ["NPY002"]
+"episim/{__init__,networks}.py" = ["NPY002"]
 "tests/test_{networks,against_main}.py" = ["NPY002"]
 
 [tool.mypy]

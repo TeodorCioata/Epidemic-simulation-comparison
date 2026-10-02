@@ -219,3 +219,4 @@ __marimo__/
 
 # Snapshot images written by compare_models.py
 snapshots/
+results/

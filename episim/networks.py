@@ -8,7 +8,7 @@ import networkx as nx
 import numpy as np
 from scipy.stats import spearmanr
 
-import main
+from episim import main
 
 NETWORK_NAMES = {
     "E": "Erdős-Rényi",
