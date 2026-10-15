@@ -1,0 +1,8 @@
+[theme]
+primaryColor = "blue"
+backgroundColor = "white"
+textColor = "darkBlue"
+linkColor = "#blue"
+borderColor = "darkBlue"
+showWidgetBorder = true
+baseRadius = "0.5rem"
