@@ -60,3 +60,11 @@ weighted growth.
 | `tests/` | Teodor | behaviour tests, including a statistical cross-check against `main.py` |
 
 Authors: Teodor Cioata, Sarlote Odzina. MIT licensed.
+
+
+For the frontend, it is needed to install streamlit as follows:
+```python -m pip install streamlit```
+
+To run the frontend, run:
+
+```python -m streamlit run frontend/app.py```
