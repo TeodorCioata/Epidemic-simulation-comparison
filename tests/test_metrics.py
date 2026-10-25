@@ -69,6 +69,12 @@ def test_metrics_of_a_hand_written_log():
     assert run_metrics(["S"] * 10, [])["duration"] == 0.0
 
 
+def test_immunised_nodes_are_not_counted_as_infected():
+    initial = ["I", "R", "R"] + ["S"] * 7
+    events = [(1.0, 3, "E"), (2.0, 0, "R"), (3.0, 3, "I"), (4.0, 3, "R")]
+    assert run_metrics(initial, events)["attack_rate"] == 0.2
+
+
 def test_fitted_growth_rate_recovers_a_planted_exponential():
     """Cumulative incidence k at time log(k) / r grows as exp(r t)."""
     exposure_times = np.log(np.arange(1, 501)) / 0.7

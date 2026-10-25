@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "ruff>=0.6", "mypy>=1.11"]
+dev = ["pytest>=8.0", "ruff>=0.6", "mypy>=1.11", "EoN>=2,<3"]
 
 [tool.setuptools]
 packages = ["episim"]
@@ -35,14 +35,14 @@ markers = ["slow: takes more than a second; deselect with -m 'not slow'"]
 [tool.ruff]
 line-length = 100
 src = ["."]
-extend-exclude = ["main.py"]  # Sarlote's file: never reformat or lint-fix it
+extend-exclude = ["main.py", "frontend"]  # Sarlote's files: never reformat or lint-fix them
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "NPY", "RUF"]
 
 [tool.ruff.lint.per-file-ignores]
 # main.py draws from the legacy global RNGs, so seeding and restoring them is deliberate here.
-"episim/{__init__,networks}.py" = ["NPY002"]
+"episim/networks.py" = ["NPY002"]
 "tests/test_{networks,against_main}.py" = ["NPY002"]
 
 [tool.mypy]

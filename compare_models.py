@@ -123,7 +123,7 @@ def compare(kind: str, args: argparse.Namespace) -> None:
             save_animation(graph, m2, pos, runs, folder / "M1_vs_M2.gif")
 
 
-def run() -> None:
+def run(arguments: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Compare M1 and M2 on main.py's networks.")
     parser.add_argument("--networks", default="EBC", help=f"kinds from {''.join(NETWORK_NAMES)}")
     parser.add_argument("--n", type=int, default=100, help="number of nodes")
@@ -137,7 +137,7 @@ def run() -> None:
     parser.add_argument("--t-max", type=float, default=math.inf, help="stop the runs at this time")
     parser.add_argument("--out", type=Path, default=Path("snapshots"), help="output folder")
     parser.add_argument("--animate", action="store_true", help="save M1_vs_M2.gif (n <= 500)")
-    args = parser.parse_args()
+    args = parser.parse_args(arguments)
 
     print(
         f"main.py parameters: sigma={main.sigma} gamma={main.gamma} tau={main.tau} "

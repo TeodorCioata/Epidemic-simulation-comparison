@@ -196,6 +196,40 @@ def save_animation(
     return path
 
 
+def save_figure(figure: Figure, path: Path) -> Path:
+    """PNG for the docs, and PDF next to it for the report."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    figure.savefig(path, dpi=150)
+    figure.savefig(path.with_suffix(".pdf"))
+    return path
+
+
+def series_style(colour: str, marker: str, *, dashed: bool = False) -> dict:
+    """Line and marker of one series in an analysis chart; a dashed series has open markers."""
+    return {
+        "color": colour,
+        "linestyle": "--" if dashed else "-",
+        "linewidth": 2,
+        "marker": marker,
+        "markersize": 7,
+        "markerfacecolor": "white" if dashed else colour,
+        "markeredgecolor": colour if dashed else "white",
+        "markeredgewidth": 1.5,
+    }
+
+
+def series_legend(figure: Figure, styles: dict[str, dict], columns: int = 4) -> None:
+    """One legend above the panels, with swatches long enough to show a dash."""
+    handles = [Line2D([], [], label=label, **style) for label, style in styles.items()]
+    figure.legend(
+        handles=handles,
+        loc="outside upper center",
+        ncols=min(len(handles), columns),
+        frameon=False,
+        handlelength=3.2,
+    )
+
+
 def chart(
     rows: int = 1, columns: int = 1, figsize: tuple[float, float] = (6.4, 4.2)
 ) -> tuple[Figure, np.ndarray]:

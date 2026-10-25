@@ -12,6 +12,7 @@ from episim.networks import (
     degrees,
     edge_values,
     iid_weights,
+    shuffled_weights,
     strength_exponent,
     strengths,
     weight_cv,
@@ -87,6 +88,18 @@ def test_weight_degree_correlation_separates_the_schemes():
     assert weight_degree_correlation(degree_weights(graph, 0.5)) == pytest.approx(1.0)
     assert abs(weight_degree_correlation(iid_weights(graph, 1.0, rng(1)))) < 0.05
     assert weight_degree_correlation(graph) == 0.0
+
+
+def test_shuffle_null_keeps_the_weights_and_their_cv_exactly_and_loses_the_correlation():
+    correlated = degree_weights(create_network("C", 3000, 7, rng(0)), 0.5)
+    shuffled = shuffled_weights(correlated, rng(1))
+    assert shuffled is not correlated
+    assert list(shuffled.edges) == list(correlated.edges)
+    assert sorted(weight_list(shuffled)) == sorted(weight_list(correlated))
+    assert weight_list(shuffled) != weight_list(correlated)
+    assert weight_cv(shuffled) == weight_cv(correlated)
+    assert weight_degree_correlation(correlated) == pytest.approx(1.0)
+    assert abs(weight_degree_correlation(shuffled)) < 0.05
 
 
 @pytest.mark.parametrize("reinforcement", [0.5, 2.0])

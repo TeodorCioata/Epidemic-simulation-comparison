@@ -22,6 +22,7 @@ def simulate(
     delta: float,
     beta: float,
     t_max: float = math.inf,
+    recovered: Sequence[int] = (),
 ) -> tuple[list[str], list[Event]]:
     # Sorted neighbours: the random stream is then read in the same order on a graph and its copies.
     adjacency = [
@@ -33,7 +34,12 @@ def simulate(
         return draw() / rate if rate > 0 else math.inf
 
     infected = sorted({int(u) for u in initial_infected})
+    immune = sorted({int(u) for u in recovered})  # immunised: they start in R
+    if set(infected) & set(immune):
+        raise ValueError("a node cannot start both infectious and recovered")
     state = ["S"] * len(graph)
+    for u in immune:
+        state[u] = "R"
     for u in infected:
         state[u] = "I"
     initial_states = state.copy()
@@ -62,6 +68,8 @@ def simulate(
 
     for u in infected:
         become_infectious(u, 0.0)
+    for u in immune:
+        schedule(waiting(beta), u, "S")
     while heap:
         time, node, new_state = heapq.heappop(heap)
         if state[node] != PREVIOUS_STATE[new_state]:

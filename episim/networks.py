@@ -92,6 +92,14 @@ def degree_weights(graph: nx.Graph, theta: float) -> nx.Graph:
     return _with_weights(graph, (k[edges[:, 0]] * k[edges[:, 1]]) ** theta)
 
 
+def shuffled_weights(graph: nx.Graph, rng: np.random.Generator) -> nx.Graph:
+    """The shuffle null: the same weights permuted across edges, so CV_w stays and rho goes."""
+    shuffled = graph.copy()
+    weights = rng.permutation(edge_values(graph, "weight")).tolist()
+    nx.set_edge_attributes(shuffled, dict(zip(graph.edges, weights, strict=True)), "weight")
+    return shuffled
+
+
 def _with_weights(graph: nx.Graph, weights: np.ndarray) -> nx.Graph:
     weighted = graph.copy()
     unit_mean = (weights / weights.mean()).tolist()
@@ -120,7 +128,7 @@ def strengths(graph: nx.Graph) -> np.ndarray:
 
 def weight_cv(graph: nx.Graph) -> float:
     """CV_w = sd(w) / <w>, with the population standard deviation."""
-    w = edge_values(graph, "weight")
+    w = np.sort(edge_values(graph, "weight"))  # sorted: a permutation gives exactly the same CV_w
     return float(w.std() / w.mean())
 
 

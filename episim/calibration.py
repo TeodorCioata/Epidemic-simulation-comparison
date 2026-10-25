@@ -229,15 +229,18 @@ def match_protocol(
 ) -> float:
     """c that matches M2 to M1 (rate tau on every edge, unweighted radius rho_unit) in mean rate
     ("i"), in R_0 = T(tau) rho_unit ("ii") or in early growth rate ("iii")."""
+    if protocol not in ("i", "ii", "iii"):
+        raise ValueError(f"unknown protocol {protocol!r}; expected i, ii or iii")
+    shape = edge_values(graph, "weight") ** alpha
+    if (shape == shape[0]).all():  # uniform rates: M2 is M1 whatever is matched, so c is exact
+        return float(tau / shape[0])
     if protocol == "i":
         return match_mean_rate(graph, alpha, tau)
     if protocol == "ii":
         r0 = float(transmissibility(np.array(tau), gamma, delta)) * rho_unit
         return match_r0(graph, alpha, r0, gamma, delta, pattern, rho_unit)
-    if protocol == "iii":
-        r = growth_rate_uniform(tau, rho_unit, sigma, gamma, delta)
-        return match_growth_rate(graph, alpha, r, sigma, gamma, delta, pattern, rho_unit)
-    raise ValueError(f"unknown protocol {protocol!r}; expected i, ii or iii")
+    r = growth_rate_uniform(tau, rho_unit, sigma, gamma, delta)
+    return match_growth_rate(graph, alpha, r, sigma, gamma, delta, pattern, rho_unit)
 
 
 def attack_rate_message_passing(

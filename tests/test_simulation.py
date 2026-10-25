@@ -137,6 +137,23 @@ def test_degenerate_m2_reproduces_m1_event_for_event(kind, cv, alpha):
     assert len(m1_run[1]) > 1000
 
 
+def test_immunised_nodes_stay_recovered_without_waning_and_block_transmission():
+    path = with_rate(nx.path_graph(3), 50.0)
+    seird = MAIN_PARAMETERS | {"beta": 0.0}
+    for run in range(20):
+        initial, events = simulate(path, [0], rng(7, run), **seird, recovered=[1])
+        assert initial == ["I", "R", "S"]
+        assert {node for _, node, _ in events} == {0}
+    with pytest.raises(ValueError, match="both infectious and recovered"):
+        simulate(path, [0], rng(7), **seird, recovered=[0])
+
+
+def test_immunised_nodes_wane_like_recovered_ones():
+    path = with_rate(nx.path_graph(3), 50.0)
+    _, events = simulate(path, [0], rng(8), **MAIN_PARAMETERS, recovered=[1], t_max=20.0)
+    assert (1, "S") in {(node, state) for _, node, state in events}
+
+
 def test_zero_rate_edge_never_transmits():
     path = nx.path_graph(3)
     nx.set_edge_attributes(path, {(0, 1): 50.0, (1, 2): 0.0}, "rate")

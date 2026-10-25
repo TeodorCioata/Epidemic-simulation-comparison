@@ -1,4 +1,4 @@
-"""Small seeded versions of the checks that validate.py runs on the pilot."""
+"""Small seeded versions of the checks that validate.py runs on the RQ1 experiment."""
 
 import numpy as np
 import pytest
@@ -14,9 +14,10 @@ from episim.calibration import (
     transmissibility,
     unit_radius,
 )
-from episim.metrics import run_metrics
+from episim.metrics import MAJOR_ATTACK_RATE, run_metrics
 from episim.networks import create_network, edge_values, iid_weights
 from episim.simulation import simulate
+from validate import eon, threshold_runs
 
 pytestmark = pytest.mark.slow
 
@@ -91,3 +92,20 @@ def test_newman_fails_on_ba_because_of_its_wiring_not_its_degrees():
         gap[kind] = r0_nonbacktracking(graph, t) / r0_newman(graph, t) - 1
     assert gap["B"] < -0.2
     assert abs(gap["H"]) < abs(gap["B"]) / 2
+
+
+def test_threshold_sits_where_the_nonbacktracking_r0_crosses_one():
+    rows = threshold_runs(("E", 0, 2000, 30, (0.8, 2.0)))
+    for model in ("M1", "M2"):
+        for level, lowest, highest in ((0.8, 0.0, 0.0), (2.0, 0.25, 1.0)):
+            cell = [row for row in rows if (row["model"], row["level"]) == (model, level)]
+            assert all(row["r0"] == pytest.approx(level, rel=1e-9) for row in cell)
+            major = np.mean([row["attack_rate"] >= MAJOR_ATTACK_RATE for row in cell])
+            assert lowest <= major <= highest
+
+
+def test_attack_rate_distribution_agrees_with_eon():
+    pytest.importorskip("EoN")
+    for row in eon(runs=400):
+        assert abs(row["z"]) < 4
+        assert row["ks_p"] > 1e-3

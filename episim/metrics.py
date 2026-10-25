@@ -60,7 +60,7 @@ def run_metrics(
     infectious = counts[:, CODE["I"]]
     active = counts[:, CODE["E"]] + infectious
     exposed = new == CODE["E"]
-    ever_infected = np.array([state != "S" for state in initial_states])
+    ever_infected = np.array([state in ("E", "I") for state in initial_states])
     ever_infected[nodes[exposed]] = True
     attack_rate = float(ever_infected.mean())
     peak = int(infectious.argmax())

@@ -20,7 +20,7 @@ from episim.calibration import (
     transmissibility,
     unit_radius,
 )
-from episim.networks import create_network, edge_array, edge_values, iid_weights
+from episim.networks import create_network, degree_weights, edge_array, edge_values, iid_weights
 
 SIGMA, GAMMA, DELTA, TAU = 1.0, 1.0, 0.1, 1.0
 
@@ -167,16 +167,17 @@ def test_protocol_iii_gives_m2_the_growth_rate_of_m1(graph):
     assert r0_nonbacktracking(weighted, rate_t(weighted), pattern) < 0.95 * m1_r0
 
 
-@pytest.mark.parametrize(("cv", "alpha"), [(0.0, 1.7), (2.0, 0.0)])
+@pytest.mark.parametrize(
+    ("scheme", "level", "alpha"), [("iid", 0, 1.7), ("iid", 2, 0), ("degree", 0, 1)]
+)
 @pytest.mark.parametrize("protocol", ["i", "ii", "iii"])
-def test_every_protocol_recovers_tau_in_the_degenerate_limits(graph, protocol, cv, alpha):
-    weighted = iid_weights(graph, cv, rng(1))
-    pattern = nonbacktracking_pattern(weighted)
-    rho_unit = unit_radius(graph, pattern)
-    c = match_protocol(
-        protocol, weighted, alpha, TAU, rho_unit, sigma=SIGMA, gamma=GAMMA, delta=DELTA
-    )
-    assert c == pytest.approx(TAU, rel=2e-12)
+def test_every_protocol_recovers_tau_exactly_in_the_degenerate_limits(
+    graph, protocol, scheme, level, alpha
+):
+    weights = iid_weights(graph, level, rng(1)) if scheme == "iid" else degree_weights(graph, level)
+    disease = {"sigma": SIGMA, "gamma": GAMMA, "delta": DELTA}
+    c = match_protocol(protocol, weights, alpha, TAU, unit_radius(graph), **disease)
+    assert c == TAU
 
 
 def test_unknown_protocol_is_rejected(graph):
