@@ -468,8 +468,9 @@ against no intervention, M1 solid and M2 dashed.
   targeting in M1 by construction, but worse in M2, where a node's strength is dominated by a few
   strong contacts rather than by its number of contacts. On Barabási–Albert at 10 %: degree 81.0 %
   [77.4, 84.2] against strength 55.4 % [51.1, 60.1] (attack rate), and outbreaks still take off in
-  79 % of runs after strength targeting against 54 % after degree targeting. On E at 20 %: 36.1 %
-  [32.7, 39.6] against 33.3 % [29.8, 37.0].
+  79 % of runs after strength targeting against 54 % after degree targeting. On E the gap is clear
+  for the peak (20 %: 63.8 % [61.8, 65.9] against 56.6 % [54.2, 59.1]) but within the intervals for
+  the attack rate (36.1 % [32.7, 39.6] against 33.3 % [29.8, 37.0]).
 - Degree targeting at 20 % prevents every outbreak on B (P(major) 0.00, reduction 99.8 % in both
   models).
 - **Edge measures (M2 only).** Halving the rate of the strongest 10 % of contacts barely helps (attack
@@ -885,7 +886,7 @@ Barabási-Albert & M2 & 0.1935 & 0.1932 & 0.06 & 0.417 & 0.424 & 0.95 \\
 
 M2 with equal weights or $\alpha = 0$ reproduces M1 event for event. On two nodes the infection
 frequency equals $T$. On three nodes with waning the simulator matches the exactly solvable Markov
-chain. Deaths and infections agree with `main.py`, whose waning (fixed in week 3) now also matches that
+chain. Deaths and infections agree with `main.py`, whose waning now also matches that
 chain. The test suite has 113 tests and runs in under a minute.
 
 
