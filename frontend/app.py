@@ -11,6 +11,7 @@ from episim.plotting import layout, draw_states, COLOURS, STATE_NAMES
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 from animation import build_animation_html
+from countermeasures import immunised, edge_measure
 
 MEAN_DEGREE = 7
 SEED = 113
@@ -26,9 +27,35 @@ st.title("Epidemic Simulation")
 st.write("Authors: Teodor Cioata, Šarlote Luīze Odziņa")
 
 #These are the options on the sidebar
-model_choice = st.sidebar.radio("Model", ("Unweighted (M1)", "Weighted (M2)"))
+#Start with countermeasures
+st.sidebar.header("Disease countermeasures")
+
+category = st.sidebar.radio("Countermeasure category",["No countermeasure", "Vaccination", "Contact reduction", ],)
+
+vaccination_strategy = None
+vaccination_coverage = 0.0
+contact_strategy = None
+edge_share = 0.0
+
+if category == "Vaccination":
+    vaccination_strategy = st.sidebar.selectbox("Vaccination strategy",["random", "degree", "strength", "acquaintance", ],)
+
+    vaccination_coverage = st.sidebar.slider("Vaccination coverage (%)", min_value=0, max_value=100,value=20, step=5,) / 100
+
+elif category == "Contact reduction":
+    contact_strategy = st.sidebar.selectbox("Contact reduction strategy",["halve strongest", "remove random",],)
+
+    edge_share = st.sidebar.slider("Contacts affected (%)",min_value=0,max_value=100,value=10,step=5,) / 100
+
+
+if category == "No countermeasure":
+    model_choice = st.sidebar.radio("Model",("Unweighted (M1)", "Weighted (M2)"))
+else:
+    model_choice = st.sidebar.radio("Model", ("Weighted (M2)"))
 topology_choice = st.sidebar.radio("Topology", ("Erdős–Rényi", "Barabási–Albert", "Configuration model"))
 population_size = st.sidebar.slider("Population Size", min_value=2, max_value=5000, value=20, step=1)
+
+
 initially_infectious_people = st.sidebar.slider("Initially Infectious People", min_value=1, max_value=population_size, value=1, step=1)
 
 st.sidebar.header("Disease parameters")
@@ -158,8 +185,47 @@ if st.sidebar.button("Run simulation!"):
         c = match_protocol(protocol, weighted, 1.0, tau, rho_unit, **disease, pattern=pattern)
         set_rates(weighted, c, 1.0)
         graph = weighted
-    initial_infected = rng.choice(len(graph), size=initially_infectious_people, replace=False).tolist()
-    initial_states, events = simulate(graph, initial_infected, rng, **disease, beta=beta, t_max=t_max)
+
+    #Apply countermeasures
+    vaccinated = []
+
+    if category == "Vaccination":
+        count = round(vaccination_coverage * len(graph))
+
+        if vaccination_strategy == "acquaintance":
+            reachable = {
+                neighbour
+                for node in graph.nodes
+                for neighbour in graph.neighbors(node)
+            }
+            if count > len(reachable):
+                st.error(
+                    "Choose a smaller number of individuals!"
+                )
+                st.stop()
+
+        vaccinated = immunised(graph, vaccination_strategy, count, rng)
+
+    elif category == "Contact reduction":
+        graph = edge_measure(graph, contact_strategy, edge_share, rng)
+
+    vaccinated_set = set(vaccinated)
+
+    eligible = [
+        node for node in graph.nodes
+        if node not in vaccinated_set
+    ]
+
+    if initially_infectious_people > len(eligible):
+        st.error(
+            "Select less initially infectious people!"
+        )
+        st.stop()
+
+    initial_infected = rng.choice(eligible, size=initially_infectious_people, replace=False).tolist()
+
+    initial_states, events = simulate(graph, initial_infected, rng, **disease, beta=beta, t_max=t_max, recovered=vaccinated)
+
     max_time = max(events[-1][0] if events else 0.0, 0.1)
     pos = layout(graph, seed=SEED)
     st.session_state["curves_png"] = progression_png(initial_states, events, max_time)
