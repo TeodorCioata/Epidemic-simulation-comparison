@@ -1,6 +1,11 @@
+#This file is used to run the container
+
 services:
   frontend:
+    #Build the image using the Dockerfile in the current directory
     build: .
+    #Map the ports: host machine to the container
     ports:
       - "8501:8501"
+    #Restart the container unless it is stopped
     restart: unless-stopped
