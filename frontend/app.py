@@ -71,7 +71,11 @@ delta = st.sidebar.slider("I->D", 0.0, 1.0, 0.1, 0.01)
 beta = st.sidebar.slider("R->S", 0.0, 1.0, 0.0, 0.1)
 #In case people can go back to the susceptible state after recovering, specify a time limit
 t_max = st.sidebar.slider("Time cap", 10.0, 200.0, 50.0, 10.0) if beta > 0 else 100.0
-protocol = st.sidebar.radio("Match M2 to M1 in", ("i", "ii", "iii"), index=0)
+if category != "No countermeasure":
+    protocol = "ii"
+    st.sidebar.radio("Match M2 to M1 in",("i", "ii", "iii"), index=1, disabled=True, key="locked_protocol")
+else:
+    protocol = st.sidebar.radio("Match M2 to M1 in",("i", "ii", "iii"), index=0)
 cv = st.sidebar.slider("CV", 0.0, 2.0, 0.5, 0.5)
 
 #Everywhere else except in this file the network topologies are denoted by "E", "B", "C", so make it match
