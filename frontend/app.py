@@ -3,15 +3,16 @@ import io
 
 import numpy as np
 import streamlit as st
-from episim.networks import create_network
+from episim.networks import create_network, iid_weights
 from episim.calibration import set_rates, match_protocol, nonbacktracking_pattern, unit_radius
-from episim.networks import iid_weights
 from episim.simulation import simulate, states_at
 from episim.plotting import layout, draw_states, COLOURS, STATE_NAMES
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
-from animation import build_animation_html
+from animation import build_comparison_html
 from countermeasures import immunised, edge_measure
+from pathlib import Path
+from episim.metrics import run_metrics
 
 MEAN_DEGREE = 7
 SEED = 113
@@ -20,59 +21,40 @@ MIN_FRAMES = 30
 FRAME_BUDGET = 300_000
 FRAME_MS = 100
 FRAME_DPI = 90
-ANIMATION_HEIGHT = 7 * FRAME_DPI + 90
 BG_COLOUR = "lightGray"
 
 st.title("Epidemic Simulation")
 st.write("Authors: Teodor Cioata, Šarlote Luīze Odziņa")
 
-#These are the options on the sidebar
-#Start with countermeasures
+# Countermeasures apply to both models for vaccination; edge interventions are M2-only.
 st.sidebar.header("Disease countermeasures")
-
-category = st.sidebar.radio("Countermeasure category",["No countermeasure", "Vaccination", "Contact reduction", ],)
-
+category = st.sidebar.radio("Countermeasure category", ("No countermeasure", "Vaccination", "Contact reduction"))
 vaccination_strategy = None
 vaccination_coverage = 0.0
 contact_strategy = None
 edge_share = 0.0
-
 if category == "Vaccination":
-    vaccination_strategy = st.sidebar.selectbox("Vaccination strategy",["random", "degree", "strength", "acquaintance", ],)
-
-    vaccination_coverage = st.sidebar.slider("Vaccination coverage (%)", min_value=0, max_value=100,value=20, step=5,) / 100
-
+    vaccination_strategy = st.sidebar.selectbox("Vaccination strategy", ("random", "degree", "strength", "acquaintance"))
+    vaccination_coverage = st.sidebar.slider("Vaccination coverage (%)", 0, 100, 20, 5) / 100
 elif category == "Contact reduction":
-    contact_strategy = st.sidebar.selectbox("Contact reduction strategy",["halve strongest", "remove random",],)
+    contact_strategy = st.sidebar.selectbox("Contact reduction strategy", ("halve strongest", "remove random"))
+    edge_share = st.sidebar.slider("Contacts affected (%)", 0, 100, 10, 5) / 100
+    st.sidebar.info("Contact reduction is applied to M2 only. M1 remains untreated as a reference.")
 
-    edge_share = st.sidebar.slider("Contacts affected (%)",min_value=0,max_value=100,value=10,step=5,) / 100
-
-
-if category == "No countermeasure":
-    model_choice = st.sidebar.radio("Model",("Unweighted (M1)", "Weighted (M2)"))
-else:
-    model_choice = st.sidebar.radio("Model", ("Weighted (M2)"))
+st.sidebar.header("Network settings")
 topology_choice = st.sidebar.radio("Topology", ("Erdős–Rényi", "Barabási–Albert", "Configuration model"))
-population_size = st.sidebar.slider("Population Size", min_value=2, max_value=5000, value=20, step=1)
-
-
-initially_infectious_people = st.sidebar.slider("Initially Infectious People", min_value=1, max_value=population_size, value=1, step=1)
+population_size = st.sidebar.slider("Population Size", 2, 500, 20, 1)
+initially_infectious_people = st.sidebar.slider("Initially Infectious People", 1, population_size, 1, 1)
 
 st.sidebar.header("Disease parameters")
-tau   = st.sidebar.slider("S->E", 0.1, 1.0, 1.0, 0.1)
+tau = st.sidebar.slider("S->E", 0.1, 1.0, 1.0, 0.1)
 sigma = st.sidebar.slider("E->I", 0.1, 1.0, 1.0, 0.1)
 gamma = st.sidebar.slider("I->R", 0.1, 1.0, 1.0, 0.1)
 delta = st.sidebar.slider("I->D", 0.0, 1.0, 0.1, 0.01)
-beta  = st.sidebar.slider("R->S", 0.0, 1.0, 0.0, 0.1)
-if beta > 0:
-    t_max = st.sidebar.slider("Time cap", 10.0, 200.0, 50.0, 10.0)
-else:
-    t_max = 100.0
-if model_choice == "Weighted (M2)":
-    protocol = st.sidebar.radio("Match M2 to M1 in", ("i", "ii", "iii"), index=1)
-
-if model_choice == "Weighted (M2)":
-    cv = st.sidebar.slider("CV", 0.0, 2.0, 0.5, 0.5)
+beta = st.sidebar.slider("R->S", 0.0, 1.0, 0.0, 0.1)
+t_max = st.sidebar.slider("Time cap", 10.0, 200.0, 50.0, 10.0) if beta > 0 else 100.0
+protocol = st.sidebar.radio("Match M2 to M1 in", ("i", "ii", "iii"), index=1)
+cv = st.sidebar.slider("CV", 0.0, 2.0, 0.5, 0.5)
 
 #Everywhere else except in this file the network topologies are denoted by "E", "B", "C", so make it match
 topology = {
@@ -146,96 +128,127 @@ def progression_png(initial_states, events, max_time):
     return buffer.getvalue()
 
 
-#Here the actual animation is built
-def build_animation(graph, pos, initial_states, events, max_time):
-    #Bigger populations get fewer frames otherwise it will take forever to draw them
-    wanted = int(np.clip(FRAME_BUDGET // max(len(graph), 1), MIN_FRAMES, MAX_FRAMES))
+# Both networks are sampled at exactly the same times and controlled by one HTML player.
+def build_comparison_animation(graphs, pos, runs, max_time):
+    wanted = int(np.clip(FRAME_BUDGET // max(2 * len(graphs["M1"]), 1), MIN_FRAMES, MAX_FRAMES))
     n_frames = max(2, min(wanted, round(max_time / 0.1) + 1))
     times = np.linspace(0.0, max_time, n_frames)
-    all_states = states_at(initial_states, events, times)
-    frames = [
-        figure_to_data_uri(render_frame(graph, pos, states, float(t)))
-        for t, states in zip(times, all_states)
-    ]
-    return build_animation_html(frames, [round(float(t), 1) for t in times], FRAME_MS)
+    frames = {}
+    for model in ("M1", "M2"):
+        initial_states, events = runs[model]
+        snapshots = states_at(initial_states, events, times)
+        frames[model] = []
+        for t, states in zip(times, snapshots):
+            figure = render_frame(graphs[model], pos, states, float(t))
+            frames[model].append(figure_to_data_uri(figure))
+            figure.clear()
+    return build_comparison_html(frames["M1"], frames["M2"], times.tolist(), FRAME_MS)
 
 
 def show_animation(html):
-    if hasattr(st, "iframe"):
-        st.iframe(html, height=ANIMATION_HEIGHT)
-    else:
-        import streamlit.components.v1 as components
-        components.html(html, height=ANIMATION_HEIGHT)
+    import streamlit.components.v1 as components
+    components.html(html, height=300, scrolling=False)
 
 
-#Here define what happens when the 'Run simulation' button is pressed
+
+def show_research_figures():
+    st.header("Precalculated results")
+    st.caption("These figures are precalculated results and they will not change when you change the simulation settings through the frontend")
+    figures_dir = Path(__file__).resolve().parent.parent / "docs" / "figures"
+    figures = [
+        ("Countermeasure effectiveness", "countermeasures.png"),
+        ("Final epidemic size", "final_size.png"),
+        ("Epidemic growth", "growth.png"),
+        ("Model comparison experiments", "rq1.png"),
+        ("Waning immunity experiments", "rq1_waning.png"),
+        ("Epidemic threshold", "threshold.png"),
+        ("Reproduction number differences", "r0_gap.png"),
+        ("Weight degree correlation", "theta.png"),
+        ("Transmission weight exponent", "alpha.png"),
+        ("Analysis of Weighted Model M2", "jensen.png"),
+    ]
+    for title, filename in figures:
+        path = figures_dir / filename
+        if path.is_file():
+            st.subheader(title)
+            st.image(str(path), use_container_width=True)
+    st.subheader("Calibration protocol comparisons")
+    for protocol_name in ("i", "ii", "iii"):
+        path = figures_dir / f"protocol_{protocol_name}" / "E" / "curves.png"
+        if path.is_file():
+            st.markdown(f"**Protocol {protocol_name}**")
+            st.image(str(path), use_container_width=True)
+
+
+
 if st.sidebar.button("Run simulation!"):
     status = st.sidebar.empty()
     status.markdown(":red[Simulation loading...]")
-    rng = np.random.default_rng(SEED)
     disease = dict(sigma=sigma, gamma=gamma, delta=delta)
-    graph = create_network(kind=topology[topology_choice], n=population_size, mean_degree=MEAN_DEGREE, rng=rng)
+    base = create_network(topology[topology_choice], population_size,
+                          MEAN_DEGREE, np.random.default_rng([SEED, 0]))
+    m1 = base.copy()
+    set_rates(m1, tau)
+    m2 = iid_weights(base, cv, np.random.default_rng([SEED, 1]))
+    pattern = nonbacktracking_pattern(base)
+    rho_unit = unit_radius(base, pattern)
+    c = match_protocol(protocol, m2, 1.0, tau, rho_unit, **disease, pattern=pattern)
+    set_rates(m2, c, 1.0)
+    graphs = {"M1": m1, "M2": m2}
 
-    if model_choice == "Unweighted (M1)":
-        set_rates(graph, tau)
-    else:
-        weighted = iid_weights(graph, cv, rng)
-        pattern = nonbacktracking_pattern(graph)
-        rho_unit = unit_radius(graph, pattern)
-        c = match_protocol(protocol, weighted, 1.0, tau, rho_unit, **disease, pattern=pattern)
-        set_rates(weighted, c, 1.0)
-        graph = weighted
-
-    #Apply countermeasures
     vaccinated = []
-
     if category == "Vaccination":
-        count = round(vaccination_coverage * len(graph))
-
+        count = round(vaccination_coverage * len(base))
         if vaccination_strategy == "acquaintance":
-            reachable = {
-                neighbour
-                for node in graph.nodes
-                for neighbour in graph.neighbors(node)
-            }
+            reachable = {v for u in base for v in base.neighbors(u)}
             if count > len(reachable):
-                st.error(
-                    "Choose a smaller number of individuals!"
-                )
+                st.error("Choose less vaccinated people!")
                 st.stop()
-
-        vaccinated = immunised(graph, vaccination_strategy, count, rng)
-
+        target_graph = m2 if vaccination_strategy == "strength" else base
+        vaccinated = immunised(target_graph, vaccination_strategy, count,
+                               np.random.default_rng([SEED, 2]))
     elif category == "Contact reduction":
-        graph = edge_measure(graph, contact_strategy, edge_share, rng)
+        graphs["M2"] = edge_measure(m2, contact_strategy, edge_share,
+                                    np.random.default_rng([SEED, 3]))
 
-    vaccinated_set = set(vaccinated)
-
-    eligible = [
-        node for node in graph.nodes
-        if node not in vaccinated_set
-    ]
-
+    eligible = sorted(set(base.nodes) - set(vaccinated))
     if initially_infectious_people > len(eligible):
-        st.error(
-            "Select less initially infectious people!"
-        )
+        st.error("Reduce the initial infectious count or vaccination coverage.")
         st.stop()
+    initial_infected = np.random.default_rng([SEED, 4]).choice(
+        eligible, size=initially_infectious_people, replace=False
+    ).tolist()
+    runs = {
+        model: simulate(graph, initial_infected, np.random.default_rng([SEED, 5]),
+                        **disease, beta=beta, t_max=t_max,
+                        recovered=vaccinated if category == "Vaccination" else [])
+        for model, graph in graphs.items()
+    }
+    max_time = max(0.1, *(events[-1][0] if events else 0.0
+                           for _, events in runs.values()))
+    pos = layout(base, seed=SEED)
+    st.session_state["m1_progression"] = progression_png(*runs["M1"], max_time)
+    st.session_state["m2_progression"] = progression_png(*runs["M2"], max_time)
+    st.session_state["model_metrics"] = {
+        model: run_metrics(initial_states, events, t_max=t_max)
+        for model, (initial_states, events) in runs.items()
+    }
+    st.session_state["comparison_html"] = build_comparison_animation(graphs, pos, runs, max_time)
+    status.markdown(":green[Simulation was successful!]")
 
-    initial_infected = rng.choice(eligible, size=initially_infectious_people, replace=False).tolist()
 
-    initial_states, events = simulate(graph, initial_infected, rng, **disease, beta=beta, t_max=t_max, recovered=vaccinated)
-
-    max_time = max(events[-1][0] if events else 0.0, 0.1)
-    pos = layout(graph, seed=SEED)
-    st.session_state["curves_png"] = progression_png(initial_states, events, max_time)
-    st.session_state["animation_html"] = build_animation(graph, pos, initial_states, events, max_time)
-    status.markdown(":green[Simulation completed!]")
+if "comparison_html" in st.session_state:
+    st.subheader("Synchronized M1 and M2 animations")
+    show_animation(st.session_state["comparison_html"])
 
 
-#Show the animation and the plot
-if "animation_html" in st.session_state:
-    st.subheader("Epidemic progression")
-    show_animation(st.session_state["animation_html"])
-    st.subheader("Population progression over time")
-    st.image(st.session_state["curves_png"])
+    st.subheader("SEIRD progression")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**M1 Unweighted**")
+        st.image(st.session_state["m1_progression"], use_container_width=True)
+    with col2:
+        st.markdown("**M2 Weighted**")
+        st.image(st.session_state["m2_progression"], use_container_width=True)
+
+show_research_figures()

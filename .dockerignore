@@ -6,6 +6,5 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 results/
-docs/
 tests/
 *.egg-info/
