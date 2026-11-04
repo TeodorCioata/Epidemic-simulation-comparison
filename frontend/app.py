@@ -71,7 +71,7 @@ delta = st.sidebar.slider("I->D", 0.0, 1.0, 0.1, 0.01)
 beta = st.sidebar.slider("R->S", 0.0, 1.0, 0.0, 0.1)
 #In case people can go back to the susceptible state after recovering, specify a time limit
 t_max = st.sidebar.slider("Time cap", 10.0, 200.0, 50.0, 10.0) if beta > 0 else 100.0
-protocol = st.sidebar.radio("Match M2 to M1 in", ("i", "ii", "iii"), index=1)
+protocol = st.sidebar.radio("Match M2 to M1 in", ("i", "ii", "iii"), index=0)
 cv = st.sidebar.slider("CV", 0.0, 2.0, 0.5, 0.5)
 
 #Everywhere else except in this file the network topologies are denoted by "E", "B", "C", so make it match
@@ -192,7 +192,7 @@ def show_research_figures():
     The figures are independent of the current simulation and the settings.
     """
     st.header("Precalculated results")
-    st.caption("These figures are precalculated results and they will not change when you change the simulation settings through the frontend")
+    st.caption("These figures are precalculated results and they will not change when you change the simulation settings")
     figures_dir = Path(__file__).resolve().parent.parent / "docs" / "figures"
     figures = [
         ("Countermeasure effectiveness", "countermeasures.png"),
