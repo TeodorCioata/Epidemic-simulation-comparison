@@ -23,6 +23,14 @@ pip install -e ".[dev]"
 numpy is pinned below 2: numpy 2 wheels need a CPU feature (POPCNT) the development VM lacks.
 
 ## Run
+The application has a frontend. For reproducibility purposes, it is containerized. Provided that Docker is installed,
+it can be simply run by
+
+```bash
+docker compose up --build
+```
+
+To run separate parts of the project with no containerization, use the following commands:
 
 ```bash
 python run_all.py                  # every experiment, figure and table from scratch
@@ -50,21 +58,22 @@ weighted growth.
 
 ## Layout
 
-| Path | Owner | Contents |
-|---|---|---|
-| `main.py` | Sarlote | unweighted model: networks, SEIR+D with waning, live animation |
-| `frontend/` | Sarlote | Streamlit app on top of `episim` |
-| `episim/networks.py` | Teodor | topologies, weight schemes, shuffle null, `CV_w`, weight-degree correlation, strength exponent |
-| `episim/calibration.py` | Teodor | rates, `T`, `R_0` (Newman, non-backtracking), growth rate, final size, protocols (i)–(iii) |
-| `episim/simulation.py` | Teodor | event-driven SEIR+D with per-edge rates and immunised nodes; event log and replay |
-| `episim/metrics.py` | Teodor | counts over time and per-run metrics from the event log; bootstrap interval |
-| `episim/plotting.py` | Teodor | snapshots in main.py's style, epidemic curves, the M1-vs-M2 animation, chart helpers |
-| `compare_models.py` | Teodor | one M1 vs M2 run per network, mirroring `main.simulate_epidemic()` |
-| `run_experiments.py` | Teodor | paired experiment over weights × level × `alpha` × protocol (RQ1, RQ2) |
-| `countermeasures.py` | Teodor | random, degree, strength and acquaintance immunisation; edge measures |
-| `validate.py` | Teodor | growth rate, final size, `R_0`, Jensen, threshold and EoN checks |
-| `run_all.py` | Teodor | every step in order, and `results/tables.md` (Markdown + LaTeX) |
-| `tests/` | Teodor | behaviour tests, including cross-checks against `main.py` and EoN |
+| Path                               | Owner | Contents                                                                                       |
+|------------------------------------|---|------------------------------------------------------------------------------------------------|
+| `main.py`                          | Sarlote | unweighted model: networks, SEIR+D with waning, live animation                                 |
+| `frontend/`                        | Sarlote | Streamlit app on top of `episim`                                                               |
+| `Dockerfile & docker-compose.yaml` | Sarlote | Containerization of the application                                                            |
+| `episim/networks.py`               | Teodor | topologies, weight schemes, shuffle null, `CV_w`, weight-degree correlation, strength exponent |
+| `episim/calibration.py`            | Teodor | rates, `T`, `R_0` (Newman, non-backtracking), growth rate, final size, protocols (i)–(iii)     |
+| `episim/simulation.py`             | Teodor | event-driven SEIR+D with per-edge rates and immunised nodes; event log and replay              |
+| `episim/metrics.py`                | Teodor | counts over time and per-run metrics from the event log; bootstrap interval                    |
+| `episim/plotting.py`               | Teodor | snapshots in main.py's style, epidemic curves, the M1-vs-M2 animation, chart helpers           |
+| `compare_models.py`                | Teodor | one M1 vs M2 run per network, mirroring `main.simulate_epidemic()`                             |
+| `run_experiments.py`               | Teodor | paired experiment over weights × level × `alpha` × protocol (RQ1, RQ2)                         |
+| `countermeasures.py`               | Teodor | random, degree, strength and acquaintance immunisation; edge measures                          |
+| `validate.py`                      | Teodor | growth rate, final size, `R_0`, Jensen, threshold and EoN checks                               |
+| `run_all.py`                       | Teodor | every step in order, and `results/tables.md` (Markdown + LaTeX)                                |
+| `tests/`                           | Teodor | behaviour tests, including cross-checks against `main.py` and EoN                              |
 
 For the frontend, it is needed to install streamlit as follows:
 ```python -m pip install streamlit```

@@ -1,3 +1,4 @@
+#This file simply defines the appearance of the Streamlit app
 [theme]
 primaryColor = "blue"
 backgroundColor = "white"
