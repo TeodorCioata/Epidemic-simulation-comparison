@@ -46,6 +46,7 @@ from episim.plotting import (
 )
 from episim.simulation import simulate
 
+#Different random number generators for different simulation steps
 GRAPH, WEIGHTS, SEEDING, DYNAMICS = range(4)
 SNAPSHOT_TIMES = (0.0, 1.0, 2.0, 4.0, 8.0)
 MATCHED = {"i": "mean rate", "ii": "R0", "iii": "growth rate"}
@@ -57,13 +58,20 @@ COLUMNS = (
 
 
 def compare(kind: str, args: argparse.Namespace) -> None:
+    """
+    This function compares both M1 and M2 on one network topology. Both models have the same initial infections.
+    This function prints the metrics and saves the progression curves.
+    """
     disease = {"sigma": main.sigma, "gamma": main.gamma, "delta": main.delta}
 
+    #Separate random number generators allow the experiments to be reproducible
     def generator(purpose: int) -> np.random.Generator:
         return np.random.default_rng([args.seed, purpose])
 
+    #Create a network and choose the same initial infections for both M1 and M2
     graph = create_network(kind, args.n, args.k, generator(GRAPH))
     initial_infected = generator(SEEDING).choice(len(graph), args.initial, replace=False).tolist()
+    #Assign weights to M2 (but not for the weighted BBV network)
     m2 = graph.copy() if kind == "W" else iid_weights(graph, args.cv, generator(WEIGHTS))
     set_rates(graph, main.tau)
     pattern = nonbacktracking_pattern(graph)
@@ -75,6 +83,7 @@ def compare(kind: str, args: argparse.Namespace) -> None:
     models = {"M1": graph, "M2": m2}
 
     runs, seconds = {}, {}
+    #Both models are simulated here using the same initial infections and the same random seed
     for model, network in models.items():
         started = time.perf_counter()
         runs[model] = simulate(
@@ -88,11 +97,14 @@ def compare(kind: str, args: argparse.Namespace) -> None:
         seconds[model] = time.perf_counter() - started
 
     def pair(values, spec):
+        """Format two values as a string separated by /."""
         return "/".join(format(value, spec) for value in values)
 
     def count(model, state):
+        """Count how many events enter the given SEIRD state."""
         return sum(new_state == state for *_, new_state in runs[model][1])
 
+    #Calculate the transmission probabilities
     t = {
         model: transmissibility(edge_values(network, "rate"), main.gamma, main.delta)
         for model, network in models.items()
@@ -110,10 +122,11 @@ def compare(kind: str, args: argparse.Namespace) -> None:
         f"{pair((count(m, 'D') for m in models), 'd'):>12}"
         f"{pair(ends, '.1f'):>13}{pair(seconds.values(), '.2f'):>11}"
     )
-
+    #Save the progression plots for both models
     folder = args.out / kind
     name = f"{NETWORK_NAMES[kind]} ({kind})"
     save_curves(runs, folder / "curves.png", f"{name} · M2 matched in {MATCHED[args.protocol]}")
+    #Draw networks only when the number of nodes is small
     if len(graph) <= MAX_DRAWN_NODES:
         times = [*SNAPSHOT_TIMES, max(end_time(runs), SNAPSHOT_TIMES[-1])]
         pos = layout(graph, args.seed)
@@ -124,6 +137,11 @@ def compare(kind: str, args: argparse.Namespace) -> None:
 
 
 def run(arguments: list[str] | None = None) -> None:
+    """
+    This function is responsible for comparison experiments for the selected topologies. Reads arguments,
+    configures the network, weight distribution, matching protocol and simulation settings.
+    This function runs the comparison and saves the results.
+    """
     parser = argparse.ArgumentParser(description="Compare M1 and M2 on main.py's networks.")
     parser.add_argument("--networks", default="EBC", help=f"kinds from {''.join(NETWORK_NAMES)}")
     parser.add_argument("--n", type=int, default=100, help="number of nodes")
