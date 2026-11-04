@@ -51,8 +51,9 @@ REDUCED = {"attack_rate": "attack rate", "peak_prevalence": "peak prevalence"}
 
 
 def immunised(graph: nx.Graph, strategy: str, count: int, rng: np.random.Generator) -> list[int]:
-    """count distinct nodes: at random, of highest degree or strength (ties by index), or
-    acquaintances, each a random neighbour of a random node."""
+    """count distinct nodes for immunization: at random, of highest degree or strength (ties by index), or
+    acquaintances, each a random neighbour of a random node.
+    This returns a list of nodes that will be immunised before the selection."""
     if strategy == "random":
         return rng.choice(len(graph), count, replace=False).tolist()
     if strategy in ("degree", "strength"):
@@ -70,7 +71,10 @@ def immunised(graph: nx.Graph, strategy: str, count: int, rng: np.random.Generat
 def edge_measure(
     network: nx.Graph, measure: str, share: float, rng: np.random.Generator
 ) -> nx.Graph:
-    """A copy with the rates halved on the share of strongest edges, or zero on a random share."""
+    """
+    This function applies a contact reduction strategy to a weighted network.
+    It returns a copy with the rates halved on the share of strongest edges, or zero on a random share.
+    """
     rates = edge_values(network, "rate")
     count = round(share * len(rates))
     if measure == "halve strongest":
@@ -83,6 +87,11 @@ def edge_measure(
 
 
 def replicate(task: tuple[str, int, argparse.Namespace]) -> list[dict]:
+    """
+    This function creates and runs only a single replicate of the network on the countermeasures.
+    It creates both M1 and M2 using the same network structure and calibrates using protocol ii.
+    Vaccination strategies are tested on both models but contact reduction strategies only on M2.
+    """
     kind, index, args = task
     disease = {"sigma": main.sigma, "gamma": main.gamma, "delta": main.delta}
 
@@ -162,7 +171,8 @@ def summarise(rows: list[dict], seed: int) -> list[dict]:
 
 
 def rivals_of(summary: list[dict], entry: dict) -> list[dict]:
-    """The immunisation strategies of entry's network, model and coverage."""
+    """The immunisation strategies of entry's network, model and coverage.
+    Return the matching strategies."""
     cell = (entry["network"], entry["model"], entry["coverage"])
     return [
         rival
@@ -173,7 +183,8 @@ def rivals_of(summary: list[dict], entry: dict) -> list[dict]:
 
 
 def ranking(entries: list[dict]) -> str:
-    """Strategies by attack-rate reduction, e.g. 'degree = strength > acquaintance > random'."""
+    """Rank strategies by attack-rate reduction, e.g. 'degree = strength > acquaintance > random'.
+    The ranking is returned as a string"""
     ordered = sorted(entries, key=lambda entry: -entry["attack_rate_reduction"])
     text = ordered[0]["strategy"]
     for before, after in itertools.pairwise(ordered):
@@ -183,6 +194,9 @@ def ranking(entries: list[dict]) -> str:
 
 
 def print_summary(summary: list[dict]) -> None:
+    """
+    This function prints the countermeasure results in a table for M1 and M2.
+    """
     print(
         f"{'net':<4}{'strategy':<17}{'cov':>5}{'P(major) M1/M2':>16}"
         + "".join(f"{f'{name} reduction % M1 | M2':>40}" for name in REDUCED.values())
@@ -205,6 +219,9 @@ def print_summary(summary: list[dict]) -> None:
 
 
 def reduction(entry: dict | None, metric: str) -> str:
+    """
+    This function formats an epidemic reduction as a percentage and returns it formatted as a string.
+    """
     if entry is None:
         return "-"
     low, high = 100 * entry[f"{metric}_low"], 100 * entry[f"{metric}_high"]
@@ -213,7 +230,9 @@ def reduction(entry: dict | None, metric: str) -> str:
 
 def countermeasure_figure(summary: list[dict], path: Path) -> None:
     """Reduction against coverage: a row per network, a column per metric, colour and marker per
-    strategy, M1 solid and M2 dashed, with 95 % bootstrap bars."""
+    strategy, M1 solid and M2 dashed, with 95 % bootstrap bars. This function creates a figure comparing the
+    effectiveness of countermeasures for both M1 and M2 (plots reduction in attack rates and peak prevalence),
+    and saves the figure to a specified path."""
     networks = list(dict.fromkeys(entry["network"] for entry in summary))
     figure, axes = chart(
         len(networks), len(REDUCED), figsize=(4.6 * len(REDUCED), 2.6 * len(networks) + 1.0)
@@ -260,6 +279,10 @@ def countermeasure_figure(summary: list[dict], path: Path) -> None:
 
 
 def parse(arguments: list[str] | None = None) -> argparse.Namespace:
+    """
+    This function reads arguments for the experiments of countermeasures. It allows the user to change network settings.
+    The function returns parsed arguments.
+    """
     parser = argparse.ArgumentParser(description="Node immunisation and edge measures, M1 vs M2.")
     parser.add_argument("--networks", default="EB", help=f"kinds from {''.join(NETWORK_NAMES)}")
     parser.add_argument("--n", type=int, default=5000, help="number of nodes")
@@ -280,6 +303,10 @@ def parse(arguments: list[str] | None = None) -> argparse.Namespace:
 
 
 def run(arguments: list[str] | None = None) -> None:
+    """
+    This function runs the experiments of the countermeasures.
+    It executes the simulation, and saves the files and figures. This function also prints the settings and the results.
+    """
     args = parse(arguments)
     started = time.perf_counter()
     tasks = [(kind, index, args) for kind in args.networks for index in range(args.replicates)]
