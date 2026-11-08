@@ -1,5 +1,5 @@
 #Dockerfile is essential for containerizing the application.
-#Conteirization packages code and dependencies to ensure reproducibility across different machines.
+#Contairization packages code and dependencies to ensure reproducibility across different machines.
 
 #Specify the Python base image
 FROM python:3.12-slim

@@ -29,6 +29,7 @@ it can be simply run by
 ```bash
 docker compose up --build
 ```
+The frontend can be viewed at http://localhost:8501.
 
 To run separate parts of the project with no containerization, use the following commands:
 

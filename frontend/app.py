@@ -200,15 +200,15 @@ def show_research_figures():
     figures_dir = Path(__file__).resolve().parent.parent / "docs" / "figures"
     figures = [
         ("Countermeasure effectiveness", "countermeasures.png"),
-        ("Final epidemic size", "final_size.png"),
-        ("Epidemic growth", "growth.png"),
-        ("Model comparison experiments", "rq1.png"),
-        ("Waning immunity experiments", "rq1_waning.png"),
+        ("Comparison between the predicted attack rate and the simulated attack rate", "final_size.png"),
+        ("Comparison between the predicted growth rate and the simulated growth rate", "growth.png"),
+        ("Comparison of epidemic metrics of different network topologies and protocols with increasing  weight dispersion", "rq1.png"),
+        ("Comparison of epidemic metrics of different network topologies and protocols with increasing  weight dispersion and enabled waning immunity", "rq1_waning.png"),
         ("Epidemic threshold", "threshold.png"),
-        ("Reproduction number differences", "r0_gap.png"),
-        ("Weight degree correlation", "theta.png"),
-        ("Transmission weight exponent", "alpha.png"),
-        ("Analysis of Weighted Model M2", "jensen.png"),
+        ("Difference in percentage between non-backtracking and Newman's R0 across different topologies with increasing weight dispersion", "r0_gap.png"),
+        ("Comparison of epidemic metrics under different protocols with increasing weight-degree correlation", "theta.png"),
+        ("Comparison of epidemic metrics under different protocols with increasing transmission exponent", "alpha.png"),
+        ("The influence of weight dispersion on basic reproduction number and mean transmissibility ", "jensen.png"),
     ]
     for title, filename in figures:
         path = figures_dir / filename
