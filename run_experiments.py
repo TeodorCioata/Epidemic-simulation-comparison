@@ -95,6 +95,10 @@ def weight_cells(
 
 
 def replicate(task: tuple[str, int, argparse.Namespace]) -> list[dict]:
+    """
+    Run one experiment of pairs on the same initially infected nodes. This function compares M1 and M2
+    under the same matching protocols and calculates epidemic metrics, and theoretical predictions.
+    """
     kind, index, args = task
     disease = {"sigma": main.sigma, "gamma": main.gamma, "delta": main.delta}
 

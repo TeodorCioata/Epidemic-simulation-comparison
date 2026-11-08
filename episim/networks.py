@@ -22,6 +22,9 @@ NETWORK_NAMES = {
 def create_network(
     kind: str, n: int, mean_degree: int, rng: np.random.Generator, *, reinforcement: float = 1.0
 ) -> nx.Graph:
+    """This function either creates an ER, BA, configuration-model, or BBV network. Kind denotes the network type,
+    and the random generator is used for reproducibility.
+    """
     if kind in ("E", "B", "C"):
         seed = _seed(rng)
         with _seeded_global_rngs(seed):

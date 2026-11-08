@@ -24,6 +24,11 @@ def simulate(
     t_max: float = math.inf,
     recovered: Sequence[int] = (),
 ) -> tuple[list[str], list[Event]]:
+    """
+    This function simulates a SEIRD epidemic using a priority queue of different events.
+    Transmission happens at rates that are specific to edges. Recovered nodes can become susceptible again.
+    This function returns the initial node states and chronological event trace.
+    """
     # Sorted neighbours: the random stream is then read in the same order on a graph and its copies.
     adjacency = [
         [(v, graph.adj[u][v]["rate"]) for v in sorted(graph.adj[u])] for u in range(len(graph))

@@ -153,6 +153,9 @@ def baseline() -> str:
 
 
 def rq1() -> str:
+    """This function creates the RQ1 summary table across topologies, dispersions,
+    and matching protocols using M1/M2 results.
+    """
     summary = summary_of("results/rq1")
     rows = []
     for kind in ("E", "C", "B"):

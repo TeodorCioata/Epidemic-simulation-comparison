@@ -1,3 +1,7 @@
+"""In this file, the unweighted SERID simulation on the selected topologies is run. It uses a priority queue
+to process events in chronological order.
+"""
+
 import networkx as nx
 import matplotlib.pyplot as plt
 from numpy import random
@@ -5,10 +9,8 @@ import random as rnd
 import heapq
 import matplotlib.animation as animation
 import numpy as np
-from matplotlib.animation import FuncAnimation
 import matplotlib
 
-#These should be changed later
 sigma = 1 #Rate to get Infected from being exposed
 gamma = 1 #Rate to get recovered from being infectious
 tau = 1 #Rate to get exposed from being suspectible
@@ -82,13 +84,15 @@ def plotting(graph):
 
 
 def simulate_epidemic():
+    """This function simulates an epidemic using a SEIRD model using a priority queue to preserve chronological order.
+    """
     for type in ['E', 'B', 'C']:
         history = []
         initial_network = []
         network = initial_states(create_network(type, 100, 7, 113), 2)
         heap = []
         infectious_until = {}
-        last_contact = {}  #Last contact time drawn per directed edge, so that waning does not redraw a pending one
+        last_contact = {}
         heapq.heapify(heap)
         #First, put on the heap the first events that come from the first infected nodes
         current_time = 0
